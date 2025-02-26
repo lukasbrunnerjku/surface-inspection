@@ -24,8 +24,6 @@ def main(folder: Path):
             texture_folder.rename(new_texture_folder)
             texture_folders.append(new_texture_folder)
     
-    # texture_folders = folder.iterdir()
-    
     for texture_folder in texture_folders:
         for file in texture_folder.iterdir():
             name = file.name

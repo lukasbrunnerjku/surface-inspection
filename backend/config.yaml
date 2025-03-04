@@ -1,0 +1,5 @@
+dataset_path: "C:/Users/lbrunn/projects/surface-inspection/datasets/wood"
+labels:
+  - "0044"
+  - "0007"
+pretrained_model_name_or_path: "C:/Users/lbrunn/projects/surface-inspection/classify/logs/checkpoint-1350"

@@ -6,3 +6,4 @@ torch-fidelity==0.3.0
 torchmetrics
 Flask
 flask-cors
+omegaconf

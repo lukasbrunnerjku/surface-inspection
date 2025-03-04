@@ -1,39 +1,28 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+// import './App.css'
+// the above css file is not needed anymore for now
 
-function App() {
-  const [count, setCount] = useState(0)
+// cd ui
+// npm run dev
+
+
+export default function App() {
+  const [data, setData] = useState({ text: "", image_base64: "" });
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/data")
+      .then((response) => response.json())
+      .then((data) => setData(data))
+      .catch((error) => console.error("Error fetching data:", error));
+  }, []);
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={'vite.svg'} className="logo animate-spin" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card h-96 bg-green-400">
-        <button onClick={() => {
-          setCount((count) => count + 1)
-          console.log("Hi there")
-        }}
-          >
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="flex flex-col items-center p-4">
+      <h1 className="text-2xl font-bold mb-4">Flask & React Image Viewer</h1>
+      {data.text && <p className="mb-4 text-lg">{data.text}</p>}
+      {data.image_base64 && (
+        <img src={data.image_base64} alt="Fetched from backend" className="rounded shadow-lg" />
+      )}
+    </div>
+  );
 }
-
-export default App

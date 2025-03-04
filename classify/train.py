@@ -44,7 +44,7 @@ def main():
     size = 128
     mean = 0.5
     std = 0.5
-    test_fraction = 0.1
+    val_fraction = 0.1
     pretrained_model_name_or_path = "google/mobilenet_v2_1.0_224"
     output_dir = r"C:\Users\lbrunn\projects\surface-inspection\classify\logs"
     learning_rate = 1e-3
@@ -78,7 +78,7 @@ def main():
     train_ds = loaded["train"]
     test_ds = loaded["test"]
     val_ds = train_ds.train_test_split(
-        test_size=test_fraction,
+        test_size=val_fraction,
         shuffle=True,  # Keep True for stratified splitting.
         stratify_by_column="label",
     )  # Stratified; Keeps the same label distribution in each split.
@@ -123,7 +123,7 @@ def main():
         dataloader_num_workers=num_workers,
         dataloader_drop_last=True,
         dataloader_pin_memory=True,
-        # dataloader_persistent_workers=False,  # Keep False or OOM error!
+        dataloader_persistent_workers=False,  # Keep False or OOM error!
         label_smoothing_factor=0.1,
         seed=seed,
         save_total_limit=3,  # Keep only top 3 checkpoints (including the best one) in logs.

@@ -4,6 +4,7 @@ from flask_cors import CORS
 import time
 import json
 from pathlib import Path
+from torch.utils.data import DataLoader, Subset
 from dataclasses import dataclass
 from omegaconf import OmegaConf
 from datasets import load_dataset
@@ -36,7 +37,6 @@ def load_imagefolder(config: Config):
         id2label[str(i)] = label
 
     ds = ds.filter(lambda x: id2label[str(x["label"])] in config.labels)
-    print(ds)
 
     return ds, label2id, id2label
 
@@ -48,39 +48,81 @@ def pil_to_base64(image: PngImageFile) -> bytes:
     return encoded_image
 
 
+def collate_fn(batch):
+    return batch  # [{"image": ..., "label": ...}, {...}, ...]
+
+
 config = OmegaConf.merge(
     OmegaConf.structured(Config()),
     OmegaConf.load("config.yaml"),
 )
-print(config)
 
 ds, label2id, id2label = load_imagefolder(config)
-ds.curr_idx = 0
+
+examples = []
+labels: list[int] = ds["label"]
+indices = list(range(len(ds)))
+for label in config.labels:
+    i = labels.index(int(label2id[label]))
+    indices.pop(i)
+
+    image = ds[i]["image"]
+    encoded_image = pil_to_base64(image)
+    image_base64 = f"data:image/jpeg;base64,{encoded_image}"
+    
+    examples.append({"image_base64": image_base64, "label": label})
+
+ds = Subset(ds, indices)  # Remove examples from dataset.
+# import pdb; pdb.set_trace()
+
+n_total = len(ds)
+n_seen = 0 
+dl = DataLoader(ds, batch_size=1, shuffle=True, collate_fn=collate_fn)
+loader = iter(dl)
+
 
 app = Flask(__name__)
 CORS(app)
 
 
-@app.route('/api/data', methods=['GET'])
-def get_data():
+@app.route('/api/examples', methods=['GET'])
+def get_examples():
     """
-    Open a browser and visit: http://localhost:5000/api/data to
-    see the json response!
+    Open a browser to see the json response, visit:
+    http://localhost:5000/api/examples
     """
-    item = ds[ds.curr_idx]
-    image: PngImageFile = item["image"]
-    label: int = item["label"]
-    
-    try:
-        encoded_image = pil_to_base64(image)
-        ds.curr_idx += 1
-    except FileNotFoundError:
-        return jsonify({"error": "Image not found"}), 404
+    return jsonify(examples)
 
+
+@app.route('/api/next_item', methods=['GET'])
+def get_next():
+    """
+    Open a browser to see the json response, visit:
+    http://localhost:5000/api/next_item
+    """
+    global n_seen
+
+    try:
+        batch = next(loader)
+        item = batch[0]
+
+        image: PngImageFile = item["image"]
+        encoded_image = pil_to_base64(image)
+        image_base64 = f"data:image/jpeg;base64,{encoded_image}"
+        
+        label: str = id2label[str(item["label"])]
+
+        n_seen += 1
+
+    except StopIteration:
+        image_base64 = ""
+        label = ""
+    
     data = {
-        "text": "Hello from Flask Backend!",
-        "image_base64": f"data:image/jpeg;base64,{encoded_image}",
-        "index": str(ds.curr_idx),
+        "label": label,  # "0044"
+        "image_base64": image_base64,
+        "n_seen": str(n_seen),
+        "n_total": str(n_total),
     }
     return jsonify(data)
 
@@ -105,6 +147,3 @@ if __name__ == '__main__':
     The "flask run" will use the app.py code in the current directory.
     """
     app.run(debug=True)
-
-    # import pdb; pdb.set_trace()
-    # print("")

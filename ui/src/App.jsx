@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 
+// npm install framer-motion
+import { motion, AnimatePresence } from "framer-motion";
+
+// npm install react-spinners
+import { BarLoader } from "react-spinners";
+
 // cd ui
 // npm run dev
 
@@ -15,8 +21,9 @@ export default function App() {
   const [rightImages, setRightImages] = useState([]);
   const [droppedImages, setDroppedImages] = useState(new Set());
 
-  // const [progress, setProgress] = useState(0);
-  // const [processing, setProcessing] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [evalResult, setEvalResult] = useState({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!hasRendered.current) {
@@ -38,35 +45,29 @@ export default function App() {
       .catch((error) => console.error("Error fetching data:", error));
   };
 
+  const fetchEvaluation = async () => {
+    setLoading(true); // Start loading
+    try {
+      const response = await fetch("http://localhost:5000/api/evaluation");
+      const data = await response.json();
+      setEvalResult({...data});
+    } catch (error) {
+      console.error("Error fetching evaluation:", error);
+    }
+    setLoading(false); // Stop loading
+  };
+  
+  const handleEvaluationClick = async () => {
+    await fetchEvaluation(); // Fetch data first
+    setIsOpen(true); // Open the popup after image is ready
+  };
+
   useEffect(() => {
     if (!hasRendered.current) {
       fetchNextItem();
       hasRendered.current = true;
     }
   }, []);
-
-  // const startProcessing = () => {
-  //   setProcessing(true);
-  //   setProgress(0);
-
-  //   const eventSource = new EventSource("http://localhost:5000/api/process");
-
-  //   eventSource.onmessage = (event) => {
-  //     const progressData = JSON.parse(event.data);
-  //     setProgress(progressData.progress);
-
-  //     if (progressData.progress === 100) {
-  //       eventSource.close();
-  //       setProcessing(false);
-  //       fetchImageAndText(); // Fetch new image after processing
-  //     }
-  //   };
-
-  //   eventSource.onerror = () => {
-  //     eventSource.close();
-  //     setProcessing(false);
-  //   };
-  // };
 
   const handleDrop = (event, side) => {
     event.preventDefault();
@@ -108,24 +109,6 @@ export default function App() {
         via drag&drop into the correct list below. The example image will help you as reference.
       </p>
 
-      {/* <button
-        onClick={startProcessing}
-        disabled={processing}
-        className="bg-blue-500 text-white px-4 py-2 rounded shadow mt-4"
-      >
-        {processing ? "Processing..." : "Start Processing"}
-      </button>
-      {processing && (
-        <div className="w-full max-w-sm mt-4 bg-gray-200 rounded-full">
-          <div
-            className="bg-blue-500 text-xs text-center text-white p-1 rounded-full"
-            style={{ width: `${progress}%` }}
-          >
-            {progress}%
-          </div>
-        </div>
-      )} */}
-
       <div className="flex justify-center gap-6 mt-6">
         {examples.map((example, index) => (
           <div key={index} className="flex flex-col items-center bg-gray-100 p-4 rounded-lg shadow-lg">
@@ -144,12 +127,76 @@ export default function App() {
         </div>
       </div>
 
-      <button
-        onClick={fetchNextItem}
-        className="px-4 py-2 bg-blue-500 text-white rounded shadow-lg hover:bg-blue-600"
-      >
-        Next Image
-      </button>
+      <div className="flex gap-4">  
+        <button
+          onClick={fetchNextItem}
+          className="px-4 py-2 bg-blue-500 text-white rounded shadow-lg hover:bg-blue-600"
+        >
+          Next Image
+        </button>
+
+        <button
+          onClick={handleEvaluationClick}
+          className="px-4 py-2 bg-blue-500 text-white rounded shadow-lg hover:bg-blue-600"
+        >
+          Evaluate Decisions
+        </button>
+      </div>
+
+      {loading && (  // Loading spinner
+        <div className="flex justify-center items-center mt-4">
+          <BarLoader color="#3b82f6" size={15} />
+          <p className="ml-4">Loading Evaluation...</p>
+        </div>
+      )}
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-lg shadow-lg max-w-sm text-center"
+
+              // Slide down effect
+              // initial={{ y: -50, opacity: 0 }}
+              // animate={{ y: 0, opacity: 1 }}
+              // exit={{ y: -50, opacity: 0 }}
+
+              // Zoom in and out effect
+              // initial={{ scale: 0.8, opacity: 0 }}
+              // animate={{ scale: 1, opacity: 1 }}
+              // exit={{ scale: 0.8, opacity: 0 }}
+
+              // Rotate effect: rotateX, rotateY, rotateZ
+              initial={{ rotateZ: -360, opacity: 0 }}
+              animate={{ rotateZ: 0, opacity: 1 }}
+              exit={{ rotateZ: -360, opacity: 0 }}
+
+              transition={{ duration: 0.5 }}
+            >
+              <h2 className="text-xl font-semibold mb-2">Evaluation Results</h2>
+              <div className="flex justify-center items-center">
+                  <img
+                    src={evalResult.image_base64}
+                    alt="Confusion Matrix"
+                    className="rounded-lg mb-4"
+                  />
+              </div>
+              <p className="mb-4">The accuracy of the AI system is: {evalResult.acc}</p>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="px-4 py-2 bg-red-500 text-white rounded shadow-lg hover:bg-red-600"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {nextItem.image_base64 && (
         <img
@@ -168,7 +215,9 @@ export default function App() {
           onDrop={(e) => handleDrop(e, "left")}
           onDragOver={allowDrop}
         >
-          <h2 className="text-lg font-semibold mb-2">{examples[0].label} Images</h2>
+          <h2 className="text-lg font-semibold mb-2">
+            {examples.length > 0 ? `${examples[0].label} Images` : "Loading..."}
+          </h2>
           {leftImages.map((img, key) => (
             <img
               key={key}
@@ -183,7 +232,9 @@ export default function App() {
           onDrop={(e) => handleDrop(e, "right")}
           onDragOver={allowDrop}
         >
-          <h2 className="text-lg font-semibold mb-2">{examples[1].label} Images</h2>
+          <h2 className="text-lg font-semibold mb-2">
+            {examples.length > 0 ? `${examples[1].label} Images` : "Loading..."}
+          </h2>
           {rightImages.map((img, key) => (
             <img
               key={key}

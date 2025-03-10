@@ -1,15 +1,28 @@
 import base64
-from flask import Flask, Response, jsonify
+from flask import Flask, jsonify
 from flask_cors import CORS
-import time
-import json
-from pathlib import Path
 from torch.utils.data import DataLoader, Subset
 from dataclasses import dataclass
 from omegaconf import OmegaConf
 from datasets import load_dataset
 from io import BytesIO
 from PIL.PngImagePlugin import PngImageFile
+import matplotlib
+matplotlib.use("Agg")  # Non-GUI backend!
+
+import matplotlib.pyplot as plt
+import io
+import numpy as np
+import torch
+from torchvision.transforms import (
+    CenterCrop,
+    Compose,
+    Normalize,
+    ToTensor,
+)
+from transformers import AutoModelForImageClassification
+from transformers.models.mobilenet_v2 import MobileNetV2ForImageClassification
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 
 @dataclass
@@ -52,6 +65,39 @@ def collate_fn(batch):
     return batch  # [{"image": ..., "label": ...}, {...}, ...]
 
 
+@torch.inference_mode()
+def predict(
+    images: list[PngImageFile],
+    model: MobileNetV2ForImageClassification,
+    transforms: Compose,
+) -> np.ndarray:
+    """Transform images for classification model and predict integer lables."""
+    transformed_images = []
+    for img in images:
+        transformed_images.append(transforms(img.convert("RGB")))  # CxHxW
+    transformed_images = torch.stack(transformed_images, dim=0).cuda()  # BxCxHxW
+    
+    predictions = torch.argmax(model(transformed_images).logits, dim=1).cpu().numpy()  # B,
+    return predictions
+
+
+def get_confusion_matrix_base64(tgts: np.ndarray, preds: np.ndarray):
+    classes = np.unique(np.concatenate([tgts, preds], axis=0))
+    names = [id2label[str(label)] for label in classes]
+    cm = confusion_matrix(tgts, preds, labels=classes)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=names)
+    disp.plot(xticks_rotation="vertical")
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight")
+    plt.close()
+    buf.seek(0)
+    encoded_image = base64.b64encode(buf.getvalue()).decode("utf-8")
+    
+    image_base64 = f"data:image/jpeg;base64,{encoded_image}"
+    return image_base64
+
+
 config = OmegaConf.merge(
     OmegaConf.structured(Config()),
     OmegaConf.load("config.yaml"),
@@ -73,13 +119,23 @@ for label in config.labels:
     examples.append({"image_base64": image_base64, "label": label})
 
 ds = Subset(ds, indices)  # Remove examples from dataset.
-# import pdb; pdb.set_trace()
 
 n_total = len(ds)
 n_seen = 0 
 dl = DataLoader(ds, batch_size=1, shuffle=True, collate_fn=collate_fn)
 loader = iter(dl)
 
+seen_pil_images, seen_integer_labels = [], []
+
+test_transforms = Compose([
+    CenterCrop(config.image_size),
+    ToTensor(),
+    Normalize(config.image_mean, config.image_std),
+])
+
+model: MobileNetV2ForImageClassification = AutoModelForImageClassification.from_pretrained(
+    config.pretrained_model_name_or_path,
+).eval().cuda()
 
 app = Flask(__name__)
 CORS(app)
@@ -110,7 +166,11 @@ def get_next():
         encoded_image = pil_to_base64(image)
         image_base64 = f"data:image/jpeg;base64,{encoded_image}"
         
-        label: str = id2label[str(item["label"])]
+        integer_label = item["label"]
+        label: str = id2label[str(integer_label)]
+
+        seen_pil_images.append(image)
+        seen_integer_labels.append(integer_label)
 
         n_seen += 1
 
@@ -127,15 +187,21 @@ def get_next():
     return jsonify(data)
 
 
-def process_task():
-    for i in range(1, 2+1):
-        time.sleep(1)  # Simulate work
-        yield f"data: {json.dumps({'progress': i * 50})}\n\n"  # Send progress %
+@app.route('/api/evaluation', methods=['GET'])
+def get_eval():
+    if len(seen_pil_images) > 0:
+        preds = predict(seen_pil_images, model, test_transforms)
+        tgts = np.asarray(seen_integer_labels)
+        acc = f"{100 * (preds == tgts).sum() / len(preds):.2f}"
+        image_base64 = get_confusion_matrix_base64(tgts, preds)
+    else:
+        acc = ""
+        image_base64 = ""
 
-
-@app.route('/api/process', methods=['GET'])
-def process():
-    return Response(process_task(), mimetype='text/event-stream')  # Streaming response
+    import time
+    time.sleep(5)
+    data = {"acc": acc, "image_base64": image_base64}
+    return jsonify(data)
 
 
 if __name__ == '__main__':

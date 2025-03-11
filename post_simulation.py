@@ -28,7 +28,12 @@ def write_image(image_path, image: np.ndarray):
     image.save(image_path)
 
 
-def build_imagefolder_dataset(outfolder: Path, infolder: Path, patch_size: int, train_fraction: float = 0.75):
+def build_imagefolder_dataset(
+    outfolder: Path,
+    infolder: Path,
+    patch_size: int,
+    train_fraction: float = 0.75,
+):
     image_paths = sorted(infolder.glob("*.png"))
     for image_path in tqdm(image_paths, "Generating imagefolder dataset..."):
         image = read_image(image_path)

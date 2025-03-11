@@ -179,7 +179,7 @@ def get_next():
         label = ""
     
     data = {
-        "label": label,  # "0044"
+        "label": label,  # ie. "0044"
         "image_base64": image_base64,
         "n_seen": str(n_seen),
         "n_total": str(n_total),
@@ -198,8 +198,6 @@ def get_eval():
         acc = ""
         image_base64 = ""
 
-    import time
-    time.sleep(5)
     data = {"acc": acc, "image_base64": image_base64}
     return jsonify(data)
 

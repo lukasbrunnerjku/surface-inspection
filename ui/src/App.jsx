@@ -26,12 +26,15 @@ export default function App() {
   const [rightImages, setRightImages] = useState([]);
   const [droppedImages, setDroppedImages] = useState(new Set());
   const [numCorrect, setNumCorrect] = useState(0);
+  const [lastDroppedIndex, setLastDroppedIndex] = useState(null);
+  const [isAnimatingLeft, setIsAnimatingLeft] = useState(false);
+  const [isAnimatingRight, setIsAnimatingRight] = useState(false);
 
   const [isOpen, setIsOpen] = useState(false);
   const [evalResult, setEvalResult] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+  const [isButtonDisabled, setIsButtonDisabled] = useState(true);
 
   useEffect(() => {
     setLoadingExamples(true);
@@ -102,22 +105,29 @@ export default function App() {
     const imageData = nextItem.image_base64;
     const identifier = nextItem.n_seen;
     const label = nextItem.label;
-    const leftLabel = examples[0].label
-    const rightLabel = examples[1].label
+    const leftLabel = examples[0].label;
+    const rightLabel = examples[1].label;
+    const animationDuration = 500;  // [ms]
 
     if (droppedImages.has(identifier)) return;  // Prevent re-dropping
 
     if (side === "left") {
       setLeftImages([imageData, ...leftImages]);
       if (label == leftLabel) setNumCorrect(numCorrect + 1);
+      setIsAnimatingLeft(true);
+      setTimeout(() => setIsAnimatingLeft(false), animationDuration);
     } else {
       setRightImages([imageData, ...rightImages]);
       if (label == rightLabel) setNumCorrect(numCorrect + 1);
+      setIsAnimatingRight(true);
+      setTimeout(() => setIsAnimatingRight(false), animationDuration);
     }
-    
+
+    setLastDroppedIndex(0);  // Added new element at the beginning
+   
     setDroppedImages(new Set([...droppedImages, identifier]))  // Mark as dropped
 
-    setIsButtonDisabled(false);
+    setIsButtonDisabled(false);  // Enable button again
   };
 
   const allowDrop = (event) => {
@@ -208,7 +218,7 @@ export default function App() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -278,13 +288,17 @@ export default function App() {
           <h2 className="text-lg font-semibold mb-2">
             {examples.length > 0 ? `${examples[0].label} Images` : "Loading..."}
           </h2>
-          {leftImages.map((img, key) => (
-            <img
-              key={key}
-              src={img}
-              alt="Dropped"
-              className="w-[128px] h-[128px] mb-2 rounded shadow-lg"
-            />
+          {leftImages.map((img, index) => (
+            <div key={index} className="relative">
+              <img
+                src={img}
+                alt="Dropped"
+                className="w-[128px] h-[128px] mb-2 rounded shadow-lg"
+              />
+              {isAnimatingLeft && lastDroppedIndex === index && (
+                <span className="absolute inset-0 w-[128px] h-[128px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+              )}
+            </div>
           ))}
         </div>
         <div
@@ -295,13 +309,17 @@ export default function App() {
           <h2 className="text-lg font-semibold mb-2">
             {examples.length > 0 ? `${examples[1].label} Images` : "Loading..."}
           </h2>
-          {rightImages.map((img, key) => (
-            <img
-              key={key}
-              src={img}
-              alt="Dropped"
-              className="w-[128px] h-[128px] mb-2 rounded shadow-lg"
-            />
+          {rightImages.map((img, index) => (
+            <div key={index} className="relative">
+              <img
+                src={img}
+                alt="Dropped"
+                className="w-[128px] h-[128px] mb-2 rounded shadow-lg"
+              />
+              {isAnimatingRight && lastDroppedIndex === index && (
+                <span className="absolute inset-0 w-[128px] h-[128px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+              )}
+            </div>
           ))}
         </div>
       </div>

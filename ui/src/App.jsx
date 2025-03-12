@@ -114,29 +114,51 @@ export default function App() {
     }
   }, []);
 
-  const handleDrop = (event, side) => {
-    event.preventDefault();
+  const handleDrop = (e, targetSide) => {
+    e.preventDefault();
     const animationDuration = 500;  // [ms]
 
-    if (side === "left") {
-      setLeftItems([nextItem, ...leftItems]);
+    const draggedData = JSON.parse(e.dataTransfer.getData("draggedData"));
+
+    const sourceItem = draggedData.item;
+    const sourceSide = draggedData.side;
+
+    if (sourceSide === targetSide) return; // Prevent dropping in the same list
+    console.log("not same side")
+
+    if (sourceSide === "new") {  // Add new item to target list
+      if (targetSide === "left") {
+        setLeftItems([sourceItem, ...leftItems]);
+      } else {
+        setRightItems([sourceItem, ...rightItems]);
+      }
+      console.log("dropped from new side")
+    } else if (sourceSide === "left") {  // Remove from old list and add to new list
+      setLeftItems((prev) => prev.filter((i) => i !== sourceItem));
+      setRightItems((prev) => [sourceItem, ...prev]);
+    } else if (sourceSide === "right") {  // Remove from old list and add to new list
+      setRightItems((prev) => prev.filter((i) => i !== sourceItem));
+      setLeftItems((prev) => [sourceItem, ...prev]);
+    }
+
+    if (targetSide === "left") {  // Show animation on drop
       setIsAnimatingLeft(true);
       setTimeout(() => setIsAnimatingLeft(false), animationDuration);
     } else {
-      setRightItems([nextItem, ...rightItems]);
       setIsAnimatingRight(true);
       setTimeout(() => setIsAnimatingRight(false), animationDuration);
     }
     setLastDroppedIndex(0);  // Added new element at the beginning
+
     fetchNextItem();  // Load next item
   };
 
-  const allowDrop = (event) => {
-    event.preventDefault();
+  const allowDrop = (e) => {
+    e.preventDefault();
   };
 
-  const handleDragStart = (e) => {
-    e.dataTransfer.setData("text/plain", "image");
+  const handleDragStart = (e, item, side) => {
+    e.dataTransfer.setData("draggedData", JSON.stringify({ item, side }));
   };
 
   return (
@@ -275,7 +297,7 @@ export default function App() {
               alt="Draggable"
               className="rounded mt-4 cursor-grab bg-white p-4 transition-all duration-300 opacity-100"
               draggable="true"
-              onDragStart={(e) => handleDragStart(e)}
+              onDragStart={(e) => handleDragStart(e, nextItem, "new")}
               onLoad={() => {
                 console.log("Next item loaded:", nextItem.n_seen);
                 setLoadingNextItem(false);
@@ -304,6 +326,8 @@ export default function App() {
               <img
                 src={item.image_base64}
                 alt="Dropped"
+                draggable="true"
+                onDragStart={(e) => handleDragStart(e, item, "left")}
                 className={
                   `w-[132px] h-[132px] rounded shadow-lg ${
                     isOn ? (item.label == examples[0].label ? "bg-green-500" : "bg-red-500") : "bg-gray-200"
@@ -329,6 +353,8 @@ export default function App() {
               <img
                 src={item.image_base64}
                 alt="Dropped"
+                draggable="true"
+                onDragStart={(e) => handleDragStart(e, item, "right")}
                 className={
                   `w-[132px] h-[132px] rounded shadow-lg ${
                     isOn ? (item.label == examples[1].label ? "bg-green-500" : "bg-red-500") : "bg-gray-200"

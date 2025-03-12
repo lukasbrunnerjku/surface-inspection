@@ -22,21 +22,18 @@ export default function App() {
 
   const [dataProgress, setDataProgress] = useState(0);
 
-  const [leftImages, setLeftImages] = useState([]);
-  const [rightImages, setRightImages] = useState([]);
-  const [droppedImages, setDroppedImages] = useState(new Set());
-  const [numCorrect, setNumCorrect] = useState(0);
+  const [leftItems, setLeftItems] = useState([]);
+  const [rightItems, setRightItems] = useState([]);
   const [lastDroppedIndex, setLastDroppedIndex] = useState(null);
   const [isAnimatingLeft, setIsAnimatingLeft] = useState(false);
   const [isAnimatingRight, setIsAnimatingRight] = useState(false);
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [evalResult, setEvalResult] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);  // Popup window
+  const [evalResAI, setEvalResAI] = useState({});
+  const [evalResPlayer, setEvalResPlayer] = useState({});
+  const [loading, setLoading] = useState(false);  // Loading bar evaluation
 
-  const [isButtonDisabled, setIsButtonDisabled] = useState(true);
-
-  const [isOn, setIsOn] = useState(false);
+  const [isOn, setIsOn] = useState(false);  // Feedback toggle switch
 
   useEffect(() => {
     setLoadingExamples(true);
@@ -72,18 +69,13 @@ export default function App() {
         setLoadingNextItem(false);  // Stop loading on error
       });
   };
-
-  const handleNextItemClick = () => {
-    setIsButtonDisabled(true);
-    fetchNextItem(); // Call the fetch function
-  };
   
   const fetchEvaluation = async () => {
     setLoading(true); // Start loading
     try {
       const response = await fetch("http://localhost:5000/api/evaluation");
       const data = await response.json();
-      setEvalResult({...data});
+      setEvalResAI({...data});
     } catch (error) {
       console.error("Error fetching evaluation:", error);
     }
@@ -104,56 +96,38 @@ export default function App() {
 
   const handleDrop = (event, side) => {
     event.preventDefault();
-    const imageData = nextItem.image_base64;
-    const identifier = nextItem.n_seen;
-    const label = nextItem.label;
-    const leftLabel = examples[0].label;
-    const rightLabel = examples[1].label;
     const animationDuration = 500;  // [ms]
 
-    if (droppedImages.has(identifier)) return;  // Prevent re-dropping
-
     if (side === "left") {
-      setLeftImages([imageData, ...leftImages]);
-      if (label == leftLabel) setNumCorrect(numCorrect + 1);
+      setLeftItems([nextItem, ...leftItems]);
       setIsAnimatingLeft(true);
       setTimeout(() => setIsAnimatingLeft(false), animationDuration);
     } else {
-      setRightImages([imageData, ...rightImages]);
-      if (label == rightLabel) setNumCorrect(numCorrect + 1);
+      setRightItems([nextItem, ...rightItems]);
       setIsAnimatingRight(true);
       setTimeout(() => setIsAnimatingRight(false), animationDuration);
     }
-
     setLastDroppedIndex(0);  // Added new element at the beginning
-   
-    setDroppedImages(new Set([...droppedImages, identifier]))  // Mark as dropped
-
-    setIsButtonDisabled(false);  // Enable button again
+    fetchNextItem();  // Load next item
   };
 
   const allowDrop = (event) => {
     event.preventDefault();
   };
 
-  const handleDragStart = (e, identifier) => {
-    
-    if (!droppedImages.has(identifier)) {
-      e.dataTransfer.setData("text/plain", "image");
-    } else {
-      e.preventDefault(); // Prevent dragging if already dropped
-    }
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData("text/plain", "image");
   };
 
   return (
     <div className="flex flex-col items-center p-4">
 
-      <h1 className="text-2xl font-bold mb-4">Dekore Inspection Challenge</h1>
+      <h1 className="text-2xl font-bold mb-4">Decor Classification Challenge</h1>
       
       <p className="mt-2 mb-4whitespace-pre-wrap">
-        Can you beat the AI system in classifying the presented dekores correctly?<br />
-        The system will present you with a series of images, and you have to classify them<br />
-        via drag&drop into the correct list below. The example image will help you as reference.
+        Can you beat the AI system in classifying the presented wooden decores correctly?<br />
+        The system will present you with a series of images, and you have to sort them<br />
+        into the correct list via drag&drop. The example images will help you as reference.
       </p>
 
       {loadingExamples || errorFetchingExamples ? (
@@ -189,7 +163,7 @@ export default function App() {
 
       <div className="w-full max-w-sm mt-4 p-4 rounded-full">
         <div
-          className="bg-blue-500 text-xs text-center text-white p-1 rounded-full"
+          className="bg-blue-500 text-xs text-center text-black p-1 rounded-full"
           style={{ width: `${dataProgress}%` }}
         >
           {dataProgress}%
@@ -197,16 +171,6 @@ export default function App() {
       </div>
 
       <div className="flex gap-4">  
-        <button
-          onClick={handleNextItemClick}
-          disabled={isButtonDisabled}
-          className={`px-4 py-2 rounded ${
-            isButtonDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"
-          } text-white shadow-lg`}
-        >
-          {isButtonDisabled ? "Drag & Drop" : "Next Image"}
-        </button>
-
         <button
           onClick={handleEvaluationClick}
           className="px-4 py-2 bg-blue-500 text-white rounded shadow-lg hover:bg-blue-600"
@@ -265,15 +229,8 @@ export default function App() {
               transition={{ duration: 0.5 }}
             >
               <h2 className="text-xl font-semibold mb-2">Evaluation Results</h2>
-              <div className="flex justify-center items-center">
-                  <img
-                    src={evalResult.image_base64}
-                    alt="Confusion Matrix"
-                    className="rounded-lg mb-4"
-                  />
-              </div>
-              <p className="mb-4">Accuracy of the AI system is: {evalResult.acc}</p>
-              <p className="mb-4">Accuracy of the human player is: {(100 * numCorrect / droppedImages.size).toFixed(2)}</p>
+              <p className="mb-4">The AI system classified {evalResAI.correct}/{evalResAI.total} ({evalResAI.acc}%) correctly.</p>
+              <p className="mb-4">The human player classified {evalResPlayer.correct}/{evalResPlayer.total} ({evalResPlayer.acc}%) correctly.</p>
               <button
                 onClick={() => setIsOpen(false)}
                 className="px-4 py-2 bg-red-500 text-white rounded shadow-lg hover:bg-red-600"
@@ -294,11 +251,9 @@ export default function App() {
               key={nextItem.key}
               src={nextItem.image_base64}
               alt="Draggable"
-              className={`rounded mt-4 cursor-grab bg-white p-4 transition-all duration-300 ${
-                isButtonDisabled ? "opacity-100" : "opacity-50 grayscale"
-              }`}
+              className="rounded mt-4 cursor-grab bg-white p-4 transition-all duration-300 opacity-100"
               draggable="true"
-              onDragStart={(e) => handleDragStart(e, nextItem.n_seen)}
+              onDragStart={(e) => handleDragStart(e)}
               onLoad={() => {
                 console.log("Next item loaded:", nextItem.n_seen);
                 setLoadingNextItem(false);
@@ -322,15 +277,15 @@ export default function App() {
           <h2 className="text-lg font-semibold mb-2">
             {examples.length > 0 ? `${examples[0].label} Images` : "Loading..."}
           </h2>
-          {leftImages.map((img, index) => (
+          {leftItems.map((item, index) => (
             <div key={index} className="relative flex justify-center items-center mb-2">
               <img
-                src={img}
+                src={item.image_base64}
                 alt="Dropped"
-                className="w-[128px] h-[128px] rounded shadow-lg"
+                className="w-[132px] h-[132px] rounded shadow-lg bg-green-500 p-1"
               />
               {isAnimatingLeft && lastDroppedIndex === index && (
-                <span className="absolute inset-0 w-[128px] h-[128px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+                <span className="absolute inset-0 w-[132px] h-[132px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
               )}
             </div>
           ))}
@@ -343,15 +298,15 @@ export default function App() {
           <h2 className="text-lg font-semibold mb-2">
             {examples.length > 0 ? `${examples[1].label} Images` : "Loading..."}
           </h2>
-          {rightImages.map((img, index) => (
+          {rightItems.map((item, index) => (
             <div key={index} className="relative flex justify-center items-center mb-2">
               <img
-                src={img}
+                src={item.image_base64}
                 alt="Dropped"
                 className="w-[132px] h-[132px] rounded shadow-lg bg-green-500 p-1"
               />
               {isAnimatingRight && lastDroppedIndex === index && (
-                <span className="absolute inset-0 w-[128px] h-[128px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+                <span className="absolute inset-0 w-[132px] h-[132px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
               )}
             </div>
           ))}

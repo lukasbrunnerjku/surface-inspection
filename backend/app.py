@@ -192,13 +192,22 @@ def get_eval():
     if len(seen_pil_images) > 0:
         preds = predict(seen_pil_images, model, test_transforms)
         tgts = np.asarray(seen_integer_labels)
-        acc = f"{100 * (preds == tgts).sum() / len(preds):.2f}"
-        image_base64 = get_confusion_matrix_base64(tgts, preds)
+        correct = (preds == tgts).sum()
+        total = len(preds)
+        acc = f"{100 * correct / total:.2f}"
+        correct = f"{correct:d}"
+        total = f"{total:d}"
+        # image_base64 = get_confusion_matrix_base64(tgts, preds)
     else:
-        acc = ""
-        image_base64 = ""
+        acc = correct = total = ""
+        # image_base64 = ""
 
-    data = {"acc": acc, "image_base64": image_base64}
+    data = {
+        "acc": acc,
+        "correct": correct,
+        "total": total,
+        # "image_base64": image_base64,
+    }
     return jsonify(data)
 
 

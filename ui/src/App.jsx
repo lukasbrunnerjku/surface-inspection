@@ -36,6 +36,8 @@ export default function App() {
 
   const [isButtonDisabled, setIsButtonDisabled] = useState(true);
 
+  const [isOn, setIsOn] = useState(false);
+
   useEffect(() => {
     setLoadingExamples(true);
     setErrorFetchingExamples(false); // Reset error state
@@ -211,6 +213,33 @@ export default function App() {
         >
           Evaluate Decisions
         </button>
+
+        <div className="flex items-center gap-3">
+          <span className={`text-sm font-medium ${isOn ? "text-gray-800" : "text-gray-400"}`}>
+            Feedback
+          </span>
+
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={isOn}
+              onChange={() => setIsOn(!isOn)}
+            />
+            <div
+              className={`w-14 h-7 bg-gray-300 rounded-full p-1 transition duration-300 ${
+                isOn ? "bg-green-500" : ""
+              }`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full shadow-md transform transition ${
+                  isOn ? "translate-x-7" : "translate-x-0"
+                }`}
+              ></div>
+            </div>
+          </label>
+        </div>
+
       </div>
 
       {loading && (  // Loading spinner
@@ -319,7 +348,7 @@ export default function App() {
               <img
                 src={img}
                 alt="Dropped"
-                className="w-[128px] h-[128px] rounded shadow-lg"
+                className="w-[132px] h-[132px] rounded shadow-lg bg-green-500 p-1"
               />
               {isAnimatingRight && lastDroppedIndex === index && (
                 <span className="absolute inset-0 w-[128px] h-[128px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>

@@ -157,23 +157,28 @@ export default function App() {
       {loadingExamples || errorFetchingExamples ? (
         <p>Loading...</p>
       ) : (
-        <div className="flex justify-center gap-6 mt-6">
+        <div className="flex justify-center gap-12 mt-6">
           {examples.map((example, index) => (
-            <div key={index} className="flex flex-col items-center bg-gray-200 p-4 rounded-lg shadow-lg">
-              <img
-                src={example.image_base64}
-                alt={example.label}
-                className="w-[128px] h-[128px] object-cover rounded"
-                onLoad={() => {
-                  console.log("Examples loaded.")
-                  setLoadingExamples(false);
-                }}
-                onError={() => {
-                  console.log("Error loading examples.")
-                  setErrorFetchingExamples(true);
-                  setLoadingExamples(false);
-                }}
-              />
+            <div
+              key={index}
+              className="flex flex-col items-center bg-gray-200 p-4 rounded-lg shadow-lg transform transition-transform duration-300 hover:scale-150"
+            >
+              <div className="relative overflow-hidden w-[128px] h-[128px]">
+                <img
+                  src={example.image_base64}
+                  alt={example.label}
+                  className="w-full h-full object-cover rounded"
+                  onLoad={() => {
+                    console.log("Examples loaded.")
+                    setLoadingExamples(false);
+                  }}
+                  onError={() => {
+                    console.log("Error loading examples.")
+                    setErrorFetchingExamples(true);
+                    setLoadingExamples(false);
+                  }}
+                />
+              </div>
               <h2 className="mt-2 text-lg font-semibold">{example.label}</h2>
             </div>
           ))}
@@ -279,9 +284,9 @@ export default function App() {
         )}
       </div>
 
-      <div className="flex w-full max-w-4xl gap-4 justify-center">
+      <div className="flex w-full max-w-4xl gap-4 justify-center py-4">
         <div
-          className="w-[200px] min-h-[200px] bg-gray-200 p-4 rounded-lg"
+          className="flex flex-col items-center w-[200px] min-h-[200px] bg-gray-200 p-4 rounded-lg"
           onDrop={(e) => handleDrop(e, "left")}
           onDragOver={allowDrop}
         >
@@ -289,11 +294,11 @@ export default function App() {
             {examples.length > 0 ? `${examples[0].label} Images` : "Loading..."}
           </h2>
           {leftImages.map((img, index) => (
-            <div key={index} className="relative">
+            <div key={index} className="relative flex justify-center items-center mb-2">
               <img
                 src={img}
                 alt="Dropped"
-                className="w-[128px] h-[128px] mb-2 rounded shadow-lg"
+                className="w-[128px] h-[128px] rounded shadow-lg"
               />
               {isAnimatingLeft && lastDroppedIndex === index && (
                 <span className="absolute inset-0 w-[128px] h-[128px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
@@ -302,7 +307,7 @@ export default function App() {
           ))}
         </div>
         <div
-          className="w-[200px] min-h-[200px] bg-gray-200 p-4 rounded-lg"
+          className="flex flex-col items-center w-[200px] min-h-[200px] bg-gray-200 p-4 rounded-lg"
           onDrop={(e) => handleDrop(e, "right")}
           onDragOver={allowDrop}
         >
@@ -310,11 +315,11 @@ export default function App() {
             {examples.length > 0 ? `${examples[1].label} Images` : "Loading..."}
           </h2>
           {rightImages.map((img, index) => (
-            <div key={index} className="relative">
+            <div key={index} className="relative flex justify-center items-center mb-2">
               <img
                 src={img}
                 alt="Dropped"
-                className="w-[128px] h-[128px] mb-2 rounded shadow-lg"
+                className="w-[128px] h-[128px] rounded shadow-lg"
               />
               {isAnimatingRight && lastDroppedIndex === index && (
                 <span className="absolute inset-0 w-[128px] h-[128px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>

@@ -60,7 +60,7 @@ export default function App() {
       .then((response) => response.json())
       .then((data) => {
         setNextItem({...data, key: data.n_seen});
-        setDataProgress(Math.round(100 * nextItem.n_seen / nextItem.n_total));
+        setDataProgress(data.n_total > 0 ? Math.round(100 * data.n_seen / data.n_total) : 0);
         setLoadingNextItem(false);
       })
       .catch((error) => {
@@ -69,9 +69,28 @@ export default function App() {
         setLoadingNextItem(false);  // Stop loading on error
       });
   };
+
+  const evaluatePlayer = () => {
+    let correct = 0;
+    
+    for (let i = 0; i < leftItems.length; i++) {
+      if (leftItems[i].label == examples[0].label) correct++;
+    }
+    
+    for (let i = 0; i < rightItems.length; i++) {
+      if (rightItems[i].label == examples[1].label) correct++;
+    }
+    
+    const total = leftItems.length + rightItems.length;
+    const acc = (100 * correct / total).toFixed(2)
+    setEvalResPlayer({acc: acc, correct: correct, total: total});
+  };
   
   const fetchEvaluation = async () => {
     setLoading(true); // Start loading
+    
+    evaluatePlayer();
+    
     try {
       const response = await fetch("http://localhost:5000/api/evaluation");
       const data = await response.json();
@@ -79,6 +98,7 @@ export default function App() {
     } catch (error) {
       console.error("Error fetching evaluation:", error);
     }
+
     setLoading(false); // Stop loading
   };
   
@@ -162,11 +182,13 @@ export default function App() {
       )}
 
       <div className="w-full max-w-sm mt-4 p-4 rounded-full">
-        <div
-          className="bg-blue-500 text-xs text-center text-black p-1 rounded-full"
-          style={{ width: `${dataProgress}%` }}
-        >
-          {dataProgress}%
+        <div className="w-full max-w-sm rounded-full bg-gray-200">
+          <div
+            className="bg-blue-500 text-xs text-center text-black p-1 rounded-full"
+            style={{ width: `${dataProgress}%` }}
+          >
+            {dataProgress}%
+          </div>
         </div>
       </div>
 
@@ -222,7 +244,7 @@ export default function App() {
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="bg-white p-6 rounded-lg shadow-lg max-w-sm text-center"
+              className="bg-white p-6 rounded-lg shadow-lg max-w-lg text-center"
               initial={{ rotateZ: -360, opacity: 0 }}
               animate={{ rotateZ: 0, opacity: 1 }}
               exit={{ rotateZ: -360, opacity: 0 }}
@@ -282,7 +304,11 @@ export default function App() {
               <img
                 src={item.image_base64}
                 alt="Dropped"
-                className="w-[132px] h-[132px] rounded shadow-lg bg-green-500 p-1"
+                className={
+                  `w-[132px] h-[132px] rounded shadow-lg ${
+                    isOn ? (item.label == examples[0].label ? "bg-green-500" : "bg-red-500") : "bg-gray-200"
+                  } p-1`
+                }
               />
               {isAnimatingLeft && lastDroppedIndex === index && (
                 <span className="absolute inset-0 w-[132px] h-[132px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>
@@ -303,7 +329,11 @@ export default function App() {
               <img
                 src={item.image_base64}
                 alt="Dropped"
-                className="w-[132px] h-[132px] rounded shadow-lg bg-green-500 p-1"
+                className={
+                  `w-[132px] h-[132px] rounded shadow-lg ${
+                    isOn ? (item.label == examples[1].label ? "bg-green-500" : "bg-red-500") : "bg-gray-200"
+                  } p-1`
+                }
               />
               {isAnimatingRight && lastDroppedIndex === index && (
                 <span className="absolute inset-0 w-[132px] h-[132px] rounded-full bg-blue-400 opacity-75 animate-ping"></span>

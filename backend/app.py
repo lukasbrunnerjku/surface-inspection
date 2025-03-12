@@ -36,7 +36,7 @@ class Config:
     image_std: float = 0.5
     
 
-def load_imagefolder(config: Config):
+def load_imagefolder(config: Config, fraction: float = 0.5):
     ds = load_dataset(
         "imagefolder",
         data_dir=config.dataset_path,
@@ -50,6 +50,13 @@ def load_imagefolder(config: Config):
         id2label[str(i)] = label
 
     ds = ds.filter(lambda x: id2label[str(x["label"])] in config.labels)
+
+    ds = ds.train_test_split(
+        test_size=fraction,
+        generator=np.random.default_rng(seed=42),
+        shuffle=True,
+        stratify_by_column="label",
+    )["test"]  # Stratified; Keeps the same label distribution in each split.
 
     return ds, label2id, id2label
 
@@ -197,16 +204,13 @@ def get_eval():
         acc = f"{100 * correct / total:.2f}"
         correct = f"{correct:d}"
         total = f"{total:d}"
-        # image_base64 = get_confusion_matrix_base64(tgts, preds)
     else:
         acc = correct = total = ""
-        # image_base64 = ""
 
     data = {
         "acc": acc,
         "correct": correct,
         "total": total,
-        # "image_base64": image_base64,
     }
     return jsonify(data)
 

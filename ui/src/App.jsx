@@ -153,6 +153,7 @@ export default function App() {
 
     if (sourceSide === "new") {  // Add new item to target list
       setDraggedIdentifiers([...draggedIdentifiers, sourceItem.n_seen])
+      setDataProgress(Math.round(100 * sourceItem.n_seen / sourceItem.n_total));
       
       if (targetSide === "left") {
         setLeftItems([sourceItem, ...leftItems]);
@@ -166,8 +167,6 @@ export default function App() {
       setRightItems(rightItems.filter(item => item.n_seen !== sourceItem.n_seen));
       setLeftItems([sourceItem, ...leftItems]);
     }
-
-    setDataProgress(Math.round(100 * sourceItem.n_seen / sourceItem.n_total));
 
     if (targetSide === "left") {  // Show animation on drop
       setIsAnimatingLeft(true);

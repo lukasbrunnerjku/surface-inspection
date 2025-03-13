@@ -61,7 +61,7 @@ export default function App() {
       .then((response) => response.json())
       .then((data) => {
         setNextItem({...data, key: data.n_seen});
-        setDataProgress(data.n_total > 0 ? Math.round(100 * data.n_seen / data.n_total) : 0);
+        
         setLoadingNextItem(false);
       })
       .catch((error) => {
@@ -121,6 +121,25 @@ export default function App() {
     }
   }, []);
 
+  const handleResetClick = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/reset", {
+        method: "PUT",
+      });
+      const data = await response.json();
+      console.log("Reset Response:", data);
+    } catch (error) {
+      console.error("Error resetting backend state:", error);
+    }
+    setEvalResAI({});
+    setEvalResPlayer({});
+    setDraggedIdentifiers([]);
+    setLeftItems([]);
+    setRightItems([]);
+    setDataProgress(0);
+    fetchNextItem();
+  };
+
   const handleDrop = (e, targetSide) => {
     e.preventDefault();
     const animationDuration = 500;  // [ms]
@@ -147,6 +166,8 @@ export default function App() {
       setRightItems(rightItems.filter(item => item.n_seen !== sourceItem.n_seen));
       setLeftItems([sourceItem, ...leftItems]);
     }
+
+    setDataProgress(Math.round(100 * sourceItem.n_seen / sourceItem.n_total));
 
     if (targetSide === "left") {  // Show animation on drop
       setIsAnimatingLeft(true);
@@ -181,10 +202,17 @@ export default function App() {
         into the correct list via drag&drop. The example images will help you as reference.
       </p>
 
+      <button
+        onClick={handleResetClick}
+        className="px-4 py-2 bg-blue-500 text-white rounded shadow-lg hover:bg-blue-600 mt-4"
+      >
+        Reset Challenge
+      </button>
+
       {loadingExamples || errorFetchingExamples ? (
         <p>Loading...</p>
       ) : (
-        <div className="flex justify-center gap-12 mt-6">
+        <div className="flex justify-center gap-12 mt-4">
           {examples.map((example, index) => (
             <div
               key={index}
@@ -212,14 +240,16 @@ export default function App() {
         </div>
       )}
 
-      <div className="w-full max-w-sm mt-4 p-4 rounded-full">
-        <div className="w-full max-w-sm rounded-full bg-gray-200">
+      <div className="w-full max-w-sm mt-4 p-4">
+        <div className="relative w-full max-w-sm rounded-full bg-gray-400 h-6">
           <div
-            className="bg-blue-500 text-xs text-center text-black p-1 rounded-full"
+            className="bg-blue-500 h-full rounded-full"
             style={{ width: `${dataProgress}%` }}
-          >
+          ></div>
+
+          <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-semibold">
             {dataProgress}%
-          </div>
+          </span>
         </div>
       </div>
 

@@ -136,9 +136,10 @@ ds = Subset(ds, indices)  # Remove examples from dataset.
 n_total = len(ds)
 dl = DataLoader(ds, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
-loader = iter(dl)
+# Reset global state variables
 n_seen = 0 
 seen_items: list[Item] = []
+loader = iter(dl)
 
 test_transforms = Compose([
     CenterCrop(config.image_size),
@@ -152,6 +153,16 @@ model: MobileNetV2ForImageClassification = AutoModelForImageClassification.from_
 
 app = Flask(__name__)
 CORS(app)
+
+@app.route('/api/reset', methods=['PUT'])
+def do_reset():
+    # Reset global state variables
+    global n_seen, loader
+    n_seen = 0 
+    seen_items.clear()
+    assert len(seen_items) == 0
+    loader = iter(dl)
+    return jsonify({"message": "Reset done successfully."})
 
 
 @app.route('/api/examples', methods=['GET'])

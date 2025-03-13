@@ -22,6 +22,7 @@ export default function App() {
 
   const [dataProgress, setDataProgress] = useState(0);
 
+  const [draggedIdentifiers, setDraggedIdentifiers] = useState([]);  // Already classified
   const [leftItems, setLeftItems] = useState([]);
   const [rightItems, setRightItems] = useState([]);
   const [lastDroppedIndex, setLastDroppedIndex] = useState(null);
@@ -92,7 +93,13 @@ export default function App() {
     evaluatePlayer();
     
     try {
-      const response = await fetch("http://localhost:5000/api/evaluation");
+      const response = await fetch("http://localhost:5000/api/evaluation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({draggedIdentifiers: draggedIdentifiers}),
+      });
       const data = await response.json();
       setEvalResAI({...data});
     } catch (error) {
@@ -124,21 +131,21 @@ export default function App() {
     const sourceSide = draggedData.side;
 
     if (sourceSide === targetSide) return; // Prevent dropping in the same list
-    console.log("not same side")
 
     if (sourceSide === "new") {  // Add new item to target list
+      setDraggedIdentifiers([...draggedIdentifiers, sourceItem.n_seen])
+      
       if (targetSide === "left") {
         setLeftItems([sourceItem, ...leftItems]);
       } else {
         setRightItems([sourceItem, ...rightItems]);
       }
-      console.log("dropped from new side")
     } else if (sourceSide === "left") {  // Remove from old list and add to new list
-      setLeftItems((prev) => prev.filter((i) => i !== sourceItem));
-      setRightItems((prev) => [sourceItem, ...prev]);
+      setLeftItems(leftItems.filter(item => item.n_seen !== sourceItem.n_seen));
+      setRightItems([sourceItem, ...rightItems]);
     } else if (sourceSide === "right") {  // Remove from old list and add to new list
-      setRightItems((prev) => prev.filter((i) => i !== sourceItem));
-      setLeftItems((prev) => [sourceItem, ...prev]);
+      setRightItems(rightItems.filter(item => item.n_seen !== sourceItem.n_seen));
+      setLeftItems([sourceItem, ...leftItems]);
     }
 
     if (targetSide === "left") {  // Show animation on drop
@@ -150,7 +157,9 @@ export default function App() {
     }
     setLastDroppedIndex(0);  // Added new element at the beginning
 
-    fetchNextItem();  // Load next item
+    if (sourceSide === "new") {
+      fetchNextItem();  // Load next item
+    }
   };
 
   const allowDrop = (e) => {

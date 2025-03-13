@@ -1,5 +1,5 @@
 import base64
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from torch.utils.data import DataLoader, Subset
 from dataclasses import dataclass
@@ -34,6 +34,13 @@ class Config:
     image_size: int = 128
     image_mean: float = 0.5
     image_std: float = 0.5
+
+
+@dataclass
+class Item:
+    pil_image: PngImageFile
+    integer_label: int
+    n_seen: int
     
 
 def load_imagefolder(config: Config, fraction: float = 0.5):
@@ -126,13 +133,12 @@ for label in config.labels:
     examples.append({"image_base64": image_base64, "label": label})
 
 ds = Subset(ds, indices)  # Remove examples from dataset.
-
 n_total = len(ds)
-n_seen = 0 
 dl = DataLoader(ds, batch_size=1, shuffle=True, collate_fn=collate_fn)
-loader = iter(dl)
 
-seen_pil_images, seen_integer_labels = [], []
+loader = iter(dl)
+n_seen = 0 
+seen_items: list[Item] = []
 
 test_transforms = Compose([
     CenterCrop(config.image_size),
@@ -175,12 +181,13 @@ def get_next():
         
         integer_label = item["label"]
         label: str = id2label[str(integer_label)]
-
-        seen_pil_images.append(image)
-        seen_integer_labels.append(integer_label)
-
         n_seen += 1
 
+        seen_items.append(Item(
+            pil_image=image,
+            integer_label=integer_label,
+            n_seen=n_seen
+        ))
     except StopIteration:
         image_base64 = ""
         label = ""
@@ -194,18 +201,35 @@ def get_next():
     return jsonify(data)
 
 
-@app.route('/api/evaluation', methods=['GET'])
+@app.route('/api/evaluation', methods=['POST'])
 def get_eval():
-    if len(seen_pil_images) > 0:
-        preds = predict(seen_pil_images, model, test_transforms)
-        tgts = np.asarray(seen_integer_labels)
+    try:
+        data = request.get_json()  # Get JSON data from frontend
+        identifiers = data.get("draggedIdentifiers", [])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    identifiers = [int(i) for i in identifiers]
+    identifiers = set(identifiers)
+
+    if len(identifiers) > 0:
+        pil_images, integer_labels = [], []
+        for item in seen_items:
+            if item.n_seen in identifiers:
+                pil_images.append(item.pil_image)
+                integer_labels.append(item.integer_label)
+
+        preds = predict(pil_images, model, test_transforms)
+        tgts = np.asarray(integer_labels)
         correct = (preds == tgts).sum()
         total = len(preds)
         acc = f"{100 * correct / total:.2f}"
         correct = f"{correct:d}"
         total = f"{total:d}"
     else:
-        acc = correct = total = ""
+        acc = "0.00"
+        correct = "0"
+        total = str(n_total)
 
     data = {
         "acc": acc,
